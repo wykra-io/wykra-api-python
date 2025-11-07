@@ -1,10 +1,10 @@
-# app/main.py
-
+import logging
 from fastapi import FastAPI
 
 from app.core.config import get_settings
 from app.api.routes import instagram as instagram_routes
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name)

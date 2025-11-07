@@ -1,5 +1,4 @@
-# app/agents/instagram_analyzer.py
-
+import logging
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
@@ -7,9 +6,9 @@ from pydantic_ai.providers.openrouter import OpenRouterProvider
 from app.core.config import get_settings
 from app.models.instagram import InstagramProfile, InstagramAnalysis
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Configure OpenRouter provider (uses OPENROUTER_API_KEY from env or settings)
 if not settings.openrouter_api_key:
     raise ValueError(
         "OPENROUTER_API_KEY environment variable is required. "
@@ -18,10 +17,9 @@ if not settings.openrouter_api_key:
 
 openrouter_provider = OpenRouterProvider(api_key=settings.openrouter_api_key)
 
- 
 model = OpenAIChatModel(
-    settings.openrouter_model,          
-    provider=openrouter_provider,       
+    settings.openrouter_model,
+    provider=openrouter_provider,
 )
 
 instagram_agent = Agent(
@@ -45,11 +43,7 @@ instagram_agent = Agent(
 
 
 async def analyze_profile(profile: InstagramProfile) -> InstagramAnalysis:
-    """
-    Run the Pydantic AI agent on a normalized InstagramProfile
-    and return a validated InstagramAnalysis.
-    """
-    # Pass the normalized profile as input context
+    logger.info(f"Analyzing profile: {profile.username}")
     result = await instagram_agent.run(
         {
             "username": profile.username,
@@ -67,10 +61,10 @@ async def analyze_profile(profile: InstagramProfile) -> InstagramAnalysis:
 
     analysis: InstagramAnalysis = result.output
 
-    # Safety net: ensure handle/url are set
     if not analysis.handle:
         analysis.handle = profile.username
     if not analysis.profile_url and profile.profile_url:
         analysis.profile_url = profile.profile_url
 
+    logger.info(f"Analysis complete for {profile.username}")
     return analysis
