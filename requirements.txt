@@ -1,0 +1,5 @@
+fastapi
+httpx
+pydantic-ai-slim[openai]
+python-dotenv
+uvicorn[standard]

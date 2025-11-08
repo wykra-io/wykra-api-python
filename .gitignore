@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg-info/
+*.egg
+*.pkl
+*.log
+
+# Virtual envs
+.venv/
+venv/
+env/
+.python-version
+
+# IDEs & editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Envs
+.env
+.env.local
+.env.test
+.env.*.local
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Data / temporary files
+*.sqlite3
+*.db
+*.bak
+*.tmp
+
+# Project-specific
+logs/

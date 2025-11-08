@@ -1,0 +1,9 @@
+services:
+  wykra-api:
+    build: .
+    container_name: wykra-api
+    restart: unless-stopped
+    ports:
+      - "3011:3011"
+    env_file:
+      - .env
