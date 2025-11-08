@@ -1,5 +1,5 @@
 fastapi
-uvicorn[standard]
 httpx
 pydantic-ai-slim[openai]
 python-dotenv
+uvicorn[standard]
