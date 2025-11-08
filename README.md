@@ -128,7 +128,18 @@ Install all project requirements:
 pip install -r requirements.txt
 ```
 
-#### 4. Environment Variables
+#### 4. Install pre-commit hooks
+
+Install [pre-commit](https://pre-commit.com/) (once per machine) and register the hooks defined in `.pre-commit-config.yaml` so Black runs automatically on staged Python files:
+
+```bash
+pip install pre-commit
+pre-commit install
+# optional: lint everything immediately
+pre-commit run --all-files
+```
+
+#### 5. Environment Variables
 
 Create a local `.env` file (based on the provided `.env.example`):
 
@@ -145,7 +156,7 @@ OPENROUTER_API_KEY=your_openrouter_api_key
 OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
 ```
 
-#### 5. Run the API Locally
+#### 6. Run the API Locally
 
 Spin up the app directly:
 
@@ -157,7 +168,7 @@ Visit:
 - `http://localhost:3011/health`
 - `http://localhost:3011/api/v1/instagram/analysis?profile=someusername`
 
-#### 6. Quick Check
+#### 7. Quick Check
 
 ```bash
 curl http://localhost:3011/health
@@ -275,4 +286,3 @@ wykra-api-python/
 ## Thanks
 
 If you are using Wykra, contributing code or sharing feedback, you are part of this build. Let's make "find the right people to talk to" a workflow instead of a stress test.
-

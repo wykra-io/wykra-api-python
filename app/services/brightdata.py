@@ -12,12 +12,30 @@ settings = get_settings()
 
 
 class BrightDataError(Exception):
-    pass
+    """Raised when the Bright Data API returns an error or invalid response."""
 
 
 async def fetch_instagram_profile(username: str) -> InstagramProfile:
-    if not settings.brightdata_api_token or not settings.brightdata_instagram_dataset_id:
-        raise BrightDataError("Bright Data credentials or dataset ID are not configured")
+    """Fetch and normalize an Instagram profile using the Bright Data API.
+
+    Args:
+        username: The Instagram handle to fetch, without the leading ``@``.
+
+    Returns:
+        A populated :class:`InstagramProfile` built from the Bright Data dataset.
+
+    Raises:
+        BrightDataError: If the Bright Data credentials are missing or the API
+            returns an unexpected response.
+    """
+
+    if (
+        not settings.brightdata_api_token
+        or not settings.brightdata_instagram_dataset_id
+    ):
+        raise BrightDataError(
+            "Bright Data credentials or dataset ID are not configured"
+        )
 
     headers = {
         "Authorization": f"Bearer {settings.brightdata_api_token}",
@@ -55,6 +73,21 @@ async def _trigger_snapshot(
     headers: Dict[str, str],
     username: str,
 ) -> str:
+    """Trigger a Bright Data snapshot request for an Instagram username.
+
+    Args:
+        client: The HTTP client used to communicate with Bright Data.
+        headers: HTTP headers including authorization metadata.
+        username: The Instagram handle to request.
+
+    Returns:
+        The Bright Data ``snapshot_id`` that can be polled for progress.
+
+    Raises:
+        BrightDataError: If the trigger request fails or the response is missing
+            a ``snapshot_id``.
+    """
+
     trigger_url = (
         "https://api.brightdata.com/datasets/v3/trigger"
         f"?dataset_id={settings.brightdata_instagram_dataset_id}"
@@ -71,7 +104,9 @@ async def _trigger_snapshot(
         resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
         logger.error("Bright Data trigger failed: %s", exc.response.text)
-        raise BrightDataError(f"Bright Data trigger error: {exc.response.text}") from exc
+        raise BrightDataError(
+            f"Bright Data trigger error: {exc.response.text}"
+        ) from exc
 
     data = resp.json()
     logger.debug("Trigger response: %s", data)
@@ -89,6 +124,18 @@ async def _wait_for_snapshot_ready(
     headers: Dict[str, str],
     snapshot_id: str,
 ) -> None:
+    """Poll the Bright Data API until a snapshot finishes building.
+
+    Args:
+        client: The HTTP client used to communicate with Bright Data.
+        headers: HTTP headers including authorization metadata.
+        snapshot_id: The identifier returned by :func:`_trigger_snapshot`.
+
+    Raises:
+        BrightDataError: If polling fails, the snapshot reports an error, or the
+            maximum wait time is exceeded.
+    """
+
     progress_url = f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}"
     interval = settings.brightdata_poll_interval
     max_attempts = settings.brightdata_max_wait_time // interval
@@ -118,7 +165,9 @@ async def _wait_for_snapshot_ready(
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
             logger.error("Progress error: %s", exc.response.text)
-            raise BrightDataError(f"Bright Data progress error: {exc.response.text}") from exc
+            raise BrightDataError(
+                f"Bright Data progress error: {exc.response.text}"
+            ) from exc
 
         data = resp.json()
         logger.debug("Progress data: %s", data)
@@ -144,6 +193,22 @@ async def _fetch_snapshot_profile(
     headers: Dict[str, str],
     snapshot_id: str,
 ) -> Dict[str, Any]:
+    """Fetch the completed snapshot payload from Bright Data.
+
+    Args:
+        client: The HTTP client used to communicate with Bright Data.
+        headers: HTTP headers including authorization metadata.
+        snapshot_id: The identifier returned by :func:`_trigger_snapshot`.
+
+    Returns:
+        A dictionary containing the raw profile data extracted from the
+        snapshot.
+
+    Raises:
+        BrightDataError: If the API returns an error, an unexpected payload, or
+            the snapshot never becomes available.
+    """
+
     snapshot_url = f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}"
     interval = settings.brightdata_poll_interval
     max_attempts = 5
@@ -190,7 +255,11 @@ async def _fetch_snapshot_profile(
                         snapshot_id,
                         status,
                     )
-                elif data.get("account") or data.get("profile_name") or data.get("full_name"):
+                elif (
+                    data.get("account")
+                    or data.get("profile_name")
+                    or data.get("full_name")
+                ):
                     return data
                 else:
                     raise BrightDataError(
@@ -209,4 +278,3 @@ async def _fetch_snapshot_profile(
     raise BrightDataError(
         f"Snapshot {snapshot_id} not ready after {max_attempts} fetch attempts"
     )
-

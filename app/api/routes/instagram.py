@@ -12,7 +12,20 @@ router = APIRouter()
 @router.get("/analysis", response_model=InstagramAnalysis)
 async def analyze_instagram_profile(
     profile: str = Query(..., description="Instagram username (without @)")
-):
+) -> InstagramAnalysis:
+    """Analyze an Instagram profile by fetching data and invoking the agent.
+
+    Args:
+        profile: The Instagram username provided via query parameter.
+
+    Returns:
+        The structured :class:`InstagramAnalysis` produced by the agent.
+
+    Raises:
+        HTTPException: If the Bright Data API fails while retrieving the
+            profile.
+    """
+
     logger.info(f"Analysis request for profile: {profile}")
     try:
         ig_profile = await fetch_instagram_profile(profile)

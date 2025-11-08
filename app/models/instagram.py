@@ -19,9 +19,9 @@ class InstagramAnalysis(BaseModel):
     handle: str
     profile_url: Optional[HttpUrl] = None
 
-    summary: str                   # overall summary
-    topics: List[str]              # main content themes
-    audience: str                  # who they seem to reach
-    strengths: List[str]           # good signals
-    risks: List[str]               # red flags / concerns
-    fit_score: float               # 0–100 collaboration suitability
+    summary: str  # overall summary
+    topics: List[str]  # main content themes
+    audience: str  # who they seem to reach
+    strengths: List[str]  # good signals
+    risks: List[str]  # red flags / concerns
+    fit_score: float  # 0–100 collaboration suitability

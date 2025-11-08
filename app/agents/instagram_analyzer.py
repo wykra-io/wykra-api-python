@@ -46,6 +46,15 @@ instagram_agent = Agent(
 
 
 async def analyze_profile(profile: InstagramProfile) -> InstagramAnalysis:
+    """Run the Instagram analysis agent for a given profile.
+
+    Args:
+        profile: The normalized Instagram profile data to analyze.
+
+    Returns:
+        An :class:`InstagramAnalysis` containing the agent's findings.
+    """
+
     logger.info("Analyzing profile: %s", profile.username)
 
     payload = {

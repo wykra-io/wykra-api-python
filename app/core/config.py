@@ -19,7 +19,9 @@ class Settings(BaseModel):
     api_v1_prefix: str = "/api/v1"
 
     brightdata_api_token: str | None = os.getenv("BRIGHTDATA_API_TOKEN")
-    brightdata_instagram_dataset_id: str | None = os.getenv("BRIGHTDATA_INSTAGRAM_DATASET_ID")
+    brightdata_instagram_dataset_id: str | None = os.getenv(
+        "BRIGHTDATA_INSTAGRAM_DATASET_ID"
+    )
     brightdata_poll_interval: int = int(os.getenv("BRIGHTDATA_POLL_INTERVAL", "5"))
     brightdata_max_wait_time: int = int(os.getenv("BRIGHTDATA_MAX_WAIT_TIME", "300"))
 
@@ -31,4 +33,10 @@ class Settings(BaseModel):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return cached application settings loaded from environment variables.
+
+    Returns:
+        A singleton :class:`Settings` instance containing configuration values.
+    """
+
     return Settings()

@@ -11,7 +11,9 @@ app = FastAPI(title=settings.app_name)
 
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, str]:
+    """Return a simple status payload for service health checks."""
+
     return {"status": "ok", "environment": settings.environment}
 
 
