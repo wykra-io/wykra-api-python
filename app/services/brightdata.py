@@ -16,12 +16,6 @@ class BrightDataError(Exception):
 
 
 async def fetch_instagram_profile(username: str) -> InstagramProfile:
-    """
-    1) Триггерит Bright Data Instagram dataset для одного username.
-    2) Ждет, пока snapshot станет ready.
-    3) Забирает snapshot (JSON), берет первый объект.
-    4) Маппит в InstagramProfile.
-    """
     if not settings.brightdata_api_token or not settings.brightdata_instagram_dataset_id:
         raise BrightDataError("Bright Data credentials or dataset ID are not configured")
 
@@ -61,10 +55,6 @@ async def _trigger_snapshot(
     headers: Dict[str, str],
     username: str,
 ) -> str:
-    """
-    Делает /datasets/v3/trigger и возвращает snapshot_id.
-    Ожидаемый ответ: {"snapshot_id": "sd_..."}.
-    """
     trigger_url = (
         "https://api.brightdata.com/datasets/v3/trigger"
         f"?dataset_id={settings.brightdata_instagram_dataset_id}"
@@ -99,10 +89,6 @@ async def _wait_for_snapshot_ready(
     headers: Dict[str, str],
     snapshot_id: str,
 ) -> None:
-    """
-    Крутит /datasets/v3/progress/{snapshot_id} пока не будет ready/completed/done,
-    либо не кончится max_wait_time.
-    """
     progress_url = f"https://api.brightdata.com/datasets/v3/progress/{snapshot_id}"
     interval = settings.brightdata_poll_interval
     max_attempts = settings.brightdata_max_wait_time // interval
@@ -158,30 +144,69 @@ async def _fetch_snapshot_profile(
     headers: Dict[str, str],
     snapshot_id: str,
 ) -> Dict[str, Any]:
-    """
-    Забирает /datasets/v3/snapshot/{snapshot_id},
-    ожидает list[dict], возвращает первый объект.
-    """
     snapshot_url = f"https://api.brightdata.com/datasets/v3/snapshot/{snapshot_id}"
-    logger.info("Fetching snapshot JSON from %s", snapshot_url)
+    interval = settings.brightdata_poll_interval
+    max_attempts = 5
 
-    resp = await client.get(snapshot_url, headers=headers)
-    try:
-        resp.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        logger.error("Snapshot fetch error: %s", exc.response.text)
-        raise BrightDataError(f"Bright Data snapshot fetch error: {exc.response.text}") from exc
-
-    data = resp.json()
-    logger.debug("Snapshot data: %s", data)
-
-    if not isinstance(data, list) or not data:
-        raise BrightDataError(f"Snapshot {snapshot_id} returned empty or invalid JSON: {data}")
-
-    profile = data[0]
-    if not isinstance(profile, dict):
-        raise BrightDataError(
-            f"Snapshot {snapshot_id} first item is not an object: {profile}"
+    for attempt in range(1, max_attempts + 1):
+        logger.info(
+            "Fetching snapshot JSON (attempt %s/%s) from %s",
+            attempt,
+            max_attempts,
+            snapshot_url,
         )
 
-    return profile
+        resp = await client.get(snapshot_url, headers=headers)
+
+        if resp.status_code == 202:
+            logger.info("Snapshot %s not ready yet (202 Accepted)", snapshot_id)
+        else:
+            try:
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                logger.error("Snapshot fetch error: %s", exc.response.text)
+                raise BrightDataError(
+                    f"Bright Data snapshot fetch error: {exc.response.text}"
+                ) from exc
+
+            data = resp.json()
+            logger.debug("Snapshot data: %s", data)
+
+            if isinstance(data, list) and data:
+                profile = data[0]
+                if not isinstance(profile, dict):
+                    raise BrightDataError(
+                        f"Snapshot {snapshot_id} first item is not an object: {profile}"
+                    )
+                return profile
+
+            if isinstance(data, dict):
+                status = data.get("status")
+                message = str(data.get("message", "")).lower()
+
+                if status in ("building",) or "not ready yet" in message:
+                    logger.info(
+                        "Snapshot %s still building according to body (status=%s)",
+                        snapshot_id,
+                        status,
+                    )
+                elif data.get("account") or data.get("profile_name") or data.get("full_name"):
+                    return data
+                else:
+                    raise BrightDataError(
+                        f"Snapshot {snapshot_id} returned unexpected JSON object: {data}"
+                    )
+
+            logger.info(
+                "Snapshot %s returned empty or invalid JSON structure: %s",
+                snapshot_id,
+                data,
+            )
+
+        if attempt < max_attempts:
+            await asyncio.sleep(interval)
+
+    raise BrightDataError(
+        f"Snapshot {snapshot_id} not ready after {max_attempts} fetch attempts"
+    )
+

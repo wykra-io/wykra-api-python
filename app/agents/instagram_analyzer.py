@@ -1,3 +1,4 @@
+import json
 import logging
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -22,49 +23,62 @@ model = OpenAIChatModel(
     provider=openrouter_provider,
 )
 
+SYSTEM_PROMPT = (
+    "You are Wykra, an analytical, skeptical influencer research assistant. "
+    "You receive structured JSON about a single Instagram profile and must respond ONLY with JSON "
+    "matching the InstagramAnalysis schema:\n"
+    "- handle: instagram handle (without @)\n"
+    "- profile_url: profile URL if available\n"
+    "- summary: concise overview of the creator\n"
+    "- topics: main content themes as short strings\n"
+    "- audience: who follows them / geo / interests (inferred from data)\n"
+    "- strengths: bullet-style strengths\n"
+    "- risks: bullet-style risks\n"
+    "- fit_score: 0-100, higher = better collab potential; be conservative.\n"
+    "Use only the provided data. If something is missing or uncertain, say so explicitly."
+)
+
 instagram_agent = Agent(
     model=model,
     output_type=InstagramAnalysis,
-    system_prompt=(
-        "You are Wykra, an analytical, skeptical influencer research assistant. "
-        "You receive structured JSON about a single Instagram profile. "
-        "Return a JSON object matching the InstagramAnalysis schema:\n"
-        "- handle: the instagram @handle (without @)\n"
-        "- profile_url: url if available\n"
-        "- summary: concise overview of the creator\n"
-        "- topics: main content themes as short strings\n"
-        "- audience: who follows them / geo / interests (inferred)\n"
-        "- strengths: bullet-style strengths (credibility, content quality, metrics)\n"
-        "- risks: bullet-style risks (fake followers, low engagement, misalignment, controversies)\n"
-        "- fit_score: 0-100, higher = better collab potential; be conservative.\n"
-        "If data is missing or uncertain, explicitly say so instead of hallucinating."
-    ),
+    system_prompt=SYSTEM_PROMPT,
 )
 
 
 async def analyze_profile(profile: InstagramProfile) -> InstagramAnalysis:
-    logger.info(f"Analyzing profile: {profile.username}")
-    result = await instagram_agent.run(
-        {
-            "username": profile.username,
-            "full_name": profile.full_name,
-            "bio": profile.bio,
-            "followers": profile.followers,
-            "following": profile.following,
-            "posts_count": profile.posts_count,
-            "is_verified": profile.is_verified,
-            "is_business": profile.is_business,
-            "profile_url": str(profile.profile_url) if profile.profile_url else None,
-            "raw": profile.raw,
-        }
+    logger.info("Analyzing profile: %s", profile.username)
+
+    payload = {
+        "username": profile.username,
+        "full_name": profile.full_name,
+        "bio": profile.bio,
+        "followers": profile.followers,
+        "following": profile.following,
+        "posts_count": profile.posts_count,
+        "is_verified": profile.is_verified,
+        "is_business": profile.is_business,
+        "profile_url": str(profile.profile_url) if profile.profile_url else None,
+        "raw": profile.raw,
+    }
+
+    user_prompt = (
+        "Analyze the following Instagram profile data and produce an InstagramAnalysis JSON.\n"
+        f"{json.dumps(payload, ensure_ascii=False)}"
     )
 
-    analysis: InstagramAnalysis = result.output
+    result = await instagram_agent.run(user_prompt)
+    base = result.output
 
-    if not analysis.handle:
-        analysis.handle = profile.username
-    if not analysis.profile_url and profile.profile_url:
-        analysis.profile_url = profile.profile_url
+    final = InstagramAnalysis(
+        handle=base.handle or profile.username,
+        profile_url=base.profile_url or profile.profile_url,
+        summary=base.summary,
+        topics=base.topics,
+        audience=base.audience,
+        strengths=base.strengths,
+        risks=base.risks,
+        fit_score=base.fit_score,
+    )
 
-    logger.info(f"Analysis complete for {profile.username}")
-    return analysis
+    logger.info("Analysis complete for %s", profile.username)
+    return final
