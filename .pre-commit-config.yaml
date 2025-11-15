@@ -27,6 +27,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+        exclude: ^research/
   - repo: https://github.com/psf/black
     rev: 25.9.0
     hooks:
